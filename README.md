@@ -1,5 +1,7 @@
 # Advanced Data Analysis & LLM Integration
 
+[![CI](https://github.com/flyingriverhorse/Automated-EDA/actions/workflows/ci.yml/badge.svg)](https://github.com/flyingriverhorse/Automated-EDA/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/flyingriverhorse/Automated-EDA?label=release&color=blue)](https://github.com/flyingriverhorse/Automated-EDA/releases)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
