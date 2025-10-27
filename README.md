@@ -1,166 +1,419 @@
-# Advanced EDA — Developer Documentation
+# Advanced Data Analysis & LLM Integration
 
-## Overview
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Code Style](https://img.shields.io/badge/Code%20Style-Black-black.svg)](https://github.com/psf/black)
 
-The Advanced EDA (Exploratory Data Analysis) system is a modular, extensible framework for automated data analysis. It provides a comprehensive suite of statistical analyses, visualizations, and data quality checks that can be dynamically composed and executed based on your dataset characteristics and analysis needs.
+A comprehensive EDA platform built with FastAPI that combines advanced exploratory data analysis (EDA), secure code execution, and intelligent LLM integrations for modern data science workflows.
 
-### Key Goals
+## 🚀 Key Features
 
-- **Automation**: Automatically generate relevant analyses based on dataset properties
-- **Modularity**: Each analysis component is self-contained and independently testable
-- **Extensibility**: Easy to add new analysis types without modifying core logic
-- **Code Generation**: Produce executable Python code for reproducibility
-- **API-First**: RESTful API for integration with any frontend or data pipeline
+### 📊 **Advanced Data Analysis**
+- **Multi-format Data Ingestion**: Support for CSV, JSON, Excel, Parquet, and database connections
+- **Intelligent EDA Engine**: Automated exploratory data analysis with domain-specific insights
+- **Granular Analysis Components**: Modular analysis for categorical, numerical, geospatial, and text data
+- **Real-time Data Quality Monitoring**: Comprehensive data profiling and quality metrics
 
-## Architecture
+### 🔒 **Secure Code Execution**
+- **Sandboxed Environment**: Isolated code execution with resource limits and security controls
+- **Pattern-based Security**: Static analysis and runtime protection against malicious operations
+- **Process Isolation**: Multi-process architecture for safe user code execution
+- **Resource Management**: CPU and memory limits to prevent abuse
 
-The system is built around a component-based architecture:
+### 🤖 **LLM Integration**
+- **Multi-Provider Support**: OpenAI, Anthropic Claude, DeepSeek, and local models (Ollama)
+- **Intelligent Model Switching**: Automatic model selection based on task type (code, math, analysis)
+- **Context-Aware Queries**: Data-driven context injection for relevant AI responses
+- **Specialized Models**: DeepSeek Coder for programming tasks, DeepSeek Math for analysis
 
-1. **Components**: Individual analysis units (e.g., correlation analysis, outlier detection)
-2. **Registry**: Central catalog of all available components and their capabilities
-3. **Code Generators**: Transform component specifications into executable Python code
-4. **Service Layer**: Orchestrates component selection and execution
-5. **API Layer**: FastAPI routes exposing functionality via HTTP
+### 👥 **Enterprise Features**
+- **JWT Authentication**: Secure token-based authentication with role-based access control
+- **Multi-user Support**: User management with admin dashboard and permissions
+- **Async Architecture**: Modern FastAPI with async/await for high performance
+- **Database Flexibility**: Support for SQLite, PostgreSQL with async operations
 
-## Getting Started
+## 🏗️ Architecture
 
-### Prerequisites
+```
+MLOps Platform
+├── 🔐 Authentication Layer (JWT + RBAC)
+├── 📊 Data Ingestion Engine
+├── 🔍 EDA Analysis Engine
+├── 🤖 LLM Service Layer
+├── 🛡️ Security Sandbox
+└── 👥 Admin Dashboard
+```
 
-- Python 3.8+
-- FastAPI
-- Pandas, NumPy, Matplotlib, Seaborn, SciPy, Scikit-learn
+### Core Components
 
-### Installation
+- **FastAPI Backend**: Modern async web framework with automatic API documentation
+- **Advanced EDA**: Domain-specific analysis with granular components
+- **LLM Router**: Intelligent routing to appropriate AI models
+- **Security Layer**: Multi-layered protection for code execution
+- **Data Pipeline**: Robust ingestion and processing workflow
 
+## Web Experience
+
+- **Templates**: Jinja2 views in `templates/` power data ingestion, EDA dashboards, admin pages, and login flows
+- **Static Assets**: Modular JavaScript and CSS bundles in `static/` for ingestion, preview, chat, and shared UI components
+- **Page Routing**: `core.pages.routes` wires HTML routes, while `core.templates` centralizes template setup
+- **Frontend Security**: `core.auth.page_security` enforces per-page access and dynamic context rendering
+
+## 🧩 Module Overview
+
+- **Authentication (`core/auth`)**: JWT issuance, OAuth2 dependencies, page security helpers, and template routes
+- **Admin (`core/admin`)**: Async services for system stats, ingestion oversight, maintenance utilities, and admin APIs
+- **Data Ingestion (`core/data_ingestion`)**: Async upload pipeline, metadata management, schema validation, and router APIs
+- **EDA (`core/eda`)**: Preview services, text analytics, sandboxed execution, and advanced analysis orchestrators
+- **LLM (`core/llm`)**: Provider abstractions (OpenAI, Claude, DeepSeek, local), context builders, and chat endpoints
+- **Database (`core/database`)**: Async engine factory, migration utilities, repository helpers, and model declarations
+- **Exceptions & Middleware**: `core.exceptions.handlers` plus `middleware/` for structured logging and global error handling
+- **Utilities (`core/utils`)**: File helpers, logging adapters, maintenance routines, and audit logging
+
+## �📋 Prerequisites
+
+- **Python 3.10+** (Required for geospatial dependencies)
+- **Node.js 16+** (For frontend build tools)
+- **PostgreSQL 12+** (Optional, SQLite included)
+- **Docker** (Optional, for containerized deployment)
+
+## ⚡ Quick Start
+
+### 1. Clone Repository
 ```bash
+git clone https://github.com/flyingruverhorse/Automated-EDA.git
+cd Automated-EDA
+```
+
+### 2. Environment Setup
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Install dependencies
-pip install -r requirements.txt 
-
-# (Optional) Install development dependencies
-You can use: uv
+pip install -r requirements-fastapi.txt
 ```
 
-### Running the Application
-
+### 3. Configuration
 ```bash
-# Start the FastAPI server
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Copy environment template
+cp .env.example .env
 
-# Or with custom configuration
-uvicorn main:app --reload --port 8080
+# Configure your settings
+# Required: Set SECRET_KEY, database credentials, LLM API keys
 ```
 
-The API will be available at `http://localhost:8000` with interactive documentation at `http://localhost:8000/docs`.
-
-### Basic Usage
-
+### 4. Database Setup
 ```bash
-# Example: Analyze a CSV file
-curl -X POST "http://localhost:8000/api/eda/analyze" \
-  -F "file=@your_data.csv" \
-  -F "analysis_types=correlation_analysis,outlier_detection"
+# Initialize database
+alembic upgrade head
 
-# Get list of available components
-curl "http://localhost:8000/api/eda/components"
+# Create admin user (optional)
+python -c "from core.auth.auth_core import create_dummy_users; create_dummy_users()"
 ```
 
-## Documentation Structure
-
-### Core Documentation
-
-- **`services.AdvancedEDAService.md`** — Main service orchestration methods
-- **`generators.GranularAnalysisCodeGenerators.md`** — Code generation utilities
-- **`routes.endpoints.md`** — FastAPI endpoint reference
-- **`components.contract.md`** — Component interface specification and registry
-
-### High-Level Guides
-
-- **`GRANULAR_EDA_COMPONENTS_GUIDE.md`** — How to add new components and extend the system
-
-## Component Library
-
-Per-component READMEs are located in `docs/advanced_eda/components/`:
-
-### Data Quality & Structure
-- `dataset_shape_analysis.md` — Dataset dimensions and memory usage
-- `data_range_validation.md` — Value range checks and constraints
-- `data_types_validation.md` — Schema validation and type inference
-- `missing_value_analysis.md` — Missing data patterns and statistics
-- `duplicate_detection.md` — Duplicate row identification
-
-### Univariate Analysis (Numeric)
-- `summary_statistics.md` — Mean, median, std dev, quartiles
-- `distribution_plots.md` — Histograms and density plots
-- `skewness_analysis.md` — Distribution symmetry measures
-- `normality_test.md` — Shapiro-Wilk and other normality tests
-
-### Univariate Analysis (Categorical)
-- `categorical_frequency_analysis.md` — Value counts and proportions
-- `categorical_visualization.md` — Bar charts and pie charts
-
-### Bivariate/Multivariate Analysis
-- `correlation_analysis.md` — Pearson, Spearman correlation matrices
-- `scatter_plot_analysis.md` — Pairwise relationship visualization
-- `cross_tabulation_analysis.md` — Contingency tables and chi-square tests
-
-### Outlier & Anomaly Detection
-- `iqr_outlier_detection.md` — Interquartile range method
-- `zscore_outlier_detection.md` — Z-score based detection
-- `visual_outlier_inspection.md` — Box plots and visual tools
-
-### Time-Series Exploration
-- `temporal_trend_analysis.md` — Trend decomposition and analysis
-- `seasonality_detection.md` — Seasonal pattern identification
-
-### Relationship Exploration
-- `multicollinearity_analysis.md` — VIF and correlation diagnostics
-- `pca_dimensionality_reduction.md` — Principal component analysis
-
-## Adding New Components
-
-See `GRANULAR_EDA_COMPONENTS_GUIDE.md` for detailed instructions. Quick overview:
-
-1. Create component class implementing the required interface
-2. Register component in the component registry
-3. Add code generation logic in `GranularAnalysisCodeGenerators`
-4. Update component documentation
-5. Add tests
-
-## API Endpoints
-
-Key endpoints (see `routes.endpoints.md` for complete reference):
-
-- `POST /api/eda/analyze` — Run analysis on uploaded dataset
-- `GET /api/eda/components` — List all available components
-- `POST /api/eda/generate-code` — Generate executable analysis code
-- `GET /api/eda/health` — Health check endpoint
-
-## Development
-
+### 5. Run Application
 ```bash
-# Run tests
-pytest tests/
+# Development server
+python run_fastapi.py
 
-# Run with hot reload for development
-uvicorn main:app --reload
+# Production server
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
 
-# Format code
+The application will be available at `http://localhost:8000`
+
+## 🔧 Configuration
+
+### Environment Variables
+
+#### Core Settings
+```bash
+# Application
+SECRET_KEY=your-secret-key-here
+DEBUG=false
+ENVIRONMENT=production
+
+# Database
+DATABASE_TYPE=postgresql  # or sqlite
+DB_HOST=localhost
+DB_NAME=db
+DB_USER=username
+DB_PASSWORD=password
+```
+
+#### LLM Configuration
+```bash
+# OpenAI
+OPENAI_API_KEY=your-openai-key
+OPENAI_DEFAULT_MODEL=gpt-3.5-turbo
+
+# DeepSeek (Code-specialized)
+DEEPSEEK_API_KEY=your-deepseek-key
+DEEPSEEK_CODE_MODEL=deepseek-coder
+DEEPSEEK_MATH_MODEL=deepseek-math
+
+# Anthropic Claude
+ANTHROPIC_API_KEY=your-claude-key
+CLAUDE_DEFAULT_MODEL=claude-3-haiku-20240307
+
+# Local LLM (Ollama)
+LOCAL_LLM_URL=http://localhost:11434
+LOCAL_LLM_MODEL=llama2
+```
+
+## ⚙️ Environment Profiles
+
+- **Config Management**: `config.py` uses `pydantic-settings` with cached `get_settings()` accessor and environment validation
+- **Profiles**: `DevelopmentSettings`, `ProductionSettings`, and `TestingSettings` toggle middleware, logging, caching, and debugging defaults
+- **Feature Flags**: Data lineage, schema drift, retention, and LLM behaviour exposed as `ENABLE_*` toggles
+- **Helper APIs**: Utility methods for pandas configuration, database URLs, logging setup, and ML feature sizing
+
+## 📚 API Documentation
+
+### Interactive Documentation
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
+
+### Key Endpoints
+
+#### Authentication
+```http
+POST /api/auth/login     # User login
+POST /api/auth/refresh   # Token refresh
+POST /api/auth/logout    # User logout
+```
+
+#### Data Management
+```http
+POST /data/upload        # Upload datasets
+GET  /data/sources       # List data sources
+GET  /data/sources/{id}  # Get source details
+```
+
+#### EDA & Analysis
+```http
+GET  /eda/api/sources/{id}/preview   # Data preview
+POST /eda/api/sources/{id}/quality   # Quality report
+POST /advanced-eda/analyze/{id}      # Advanced analysis
+```
+
+#### LLM Integration
+```http
+POST /llm/query              # Chat with AI
+POST /llm/recommend-model    # Get model recommendation
+POST /llm/context/{id}       # Data-aware queries
+```
+
+## 🛡️ Security Features
+
+### Code Execution Security
+- **Static Analysis**: AST parsing for dangerous pattern detection
+- **Import Restrictions**: Whitelist of allowed libraries only
+- **Process Isolation**: Subprocess execution with timeout limits
+- **Resource Limits**: Memory and CPU constraints
+- **Network Blocking**: Prevention of external connections
+
+### Authentication & Authorization
+- **JWT Tokens**: Secure token-based authentication
+- **Role-Based Access**: User, admin, and custom permissions
+- **Session Management**: Secure session handling
+- **API Rate Limiting**: Protection against abuse
+
+## 🔬 Advanced Features
+
+### Domain-Specific Analysis
+```python
+# Categorical data analysis
+from core.eda.advanced_eda.granular_components.categorical import CategoricalAnalysis
+
+# Geospatial analysis
+from core.eda.advanced_eda.granular_components.geospatial import GeospatialAnalysis
+
+# Time series analysis
+from core.eda.advanced_eda.granular_components.time_series import TimeSeriesAnalysis
+```
+
+### LLM Model Switching
+```javascript
+// Switch to code-optimized model
+await window.LLMChat.switchToCodeModel();
+
+// Get model recommendation
+await window.LLMChat.getModelRecommendation('code', 'deepseek');
+```
+
+## 🚀 Deployment
+
+### Docker Deployment
+```bash
+# Build image
+docker build -t mlops-platform .
+
+# Run container
+docker run -p 8000:8000 \
+  -e SECRET_KEY=your-secret \
+  -e DATABASE_URL=your-db-url \
+  mlops-platform
+```
+
+### Production Deployment
+```bash
+# Using Gunicorn + Uvicorn
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --timeout 120 \
+  --keepalive 2
+```
+
+## 📊 Monitoring & Observability
+
+### Built-in Monitoring
+- **Health Checks**: `/health` endpoint for service monitoring
+- **Performance Metrics**: Request timing and resource usage
+- **Error Tracking**: Comprehensive logging and error handling
+- **Admin Dashboard**: Real-time system statistics
+
+### Logging Configuration
+```python
+# Structured logging with rotation
+LOGGING = {
+    'level': 'INFO',
+    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    'file': 'logs/mlops.log',
+    'max_bytes': 10_000_000,
+    'backup_count': 5
+}
+```
+
+## 🧪 Testing
+
+### Run Test Suite
+```bash
+# Unit tests
+pytest tests/unit/
+
+# Integration tests
+pytest tests/integration/
+
+# Security tests
+pytest tests/security/
+
+# Full test suite with coverage
+pytest --cov=core --cov-report=html
+```
+
+### Test Categories
+- **Unit Tests**: Core functionality testing
+- **Integration Tests**: End-to-end workflow testing
+- **Security Tests**: Sandbox and authentication testing
+- **Performance Tests**: Load and stress testing
+
+## 🛠️ Development
+
+### Development Setup
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Pre-commit hooks
+pre-commit install
+
+# Code formatting
 black .
+isort .
 
-# Lint
-flake8 .
+# Type checking
+mypy core/
 ```
 
-## Contributing
+### Project Structure
+```
+├── core/                   # Core application modules
+│   ├── auth/              # Authentication & authorization
+│   ├── data_ingestion/    # Data upload & management
+│   ├── eda/               # Exploratory data analysis
+│   ├── llm/               # LLM integration
+│   ├── admin/             # Admin dashboard
+│   └── database/          # Database models & connections
+├── static/                # Frontend assets
+├── templates/             # Jinja2 templates
+├── tests/                 # Test suite
+├── docs/                  # Documentation
+└── config.py              # Application configuration
+```
 
-When adding new components or features:
+## 🧰 Tooling & Automation
 
-1. Follow the component contract specification
-2. Add comprehensive documentation
-3. Include unit tests
-4. Update relevant README files
-5. Ensure backward compatibility
+- **Notebook Bundling**: `tools/build_notebook_bundle.py` compiles advanced EDA notebooks for deployment
+- **Alembic**: `alembic.ini` preconfigures migration settings for managing schema upgrades
+- **Middleware Stack**: `middleware/logging.py` and `middleware/error_handler.py` provide structured logging and global error capture
+- **Background Tasks**: Lifespan hooks in `main.py` initialize connections, warm caches, and gracefully shut down resources
 
-## License
+## 📈 Performance Optimization
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Database Optimization
+- **Connection Pooling**: Async SQLAlchemy with connection pooling
+- **Query Optimization**: Efficient queries with proper indexing
+- **Caching Layer**: Redis for session and analysis caching
+
+### Analysis Performance
+- **Lazy Loading**: On-demand data loading for large datasets
+- **Chunked Processing**: Memory-efficient processing for large files
+- **Parallel Processing**: Multi-process analysis for heavy computations
+
+## 🤝 Contributing
+
+### Contribution Guidelines
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### Code Standards
+- **Black**: Code formatting
+- **isort**: Import sorting
+- **MyPy**: Type checking
+- **Pytest**: Testing framework
+- **Pre-commit**: Git hooks for quality
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+### Documentation
+- **API Docs**: Available at `/docs` when running in debug mode
+- **User Guide**: See `docs/` directory for detailed guides
+- **Security Guide**: `docs/EDA_SECURITY_GUIDE.md`
+
+### Getting Help
+- **Issues**: GitHub Issues for bug reports and feature requests
+- **Discussions**: GitHub Discussions for questions and community
+- **Wiki**: Comprehensive documentation and examples
+
+## 📘 Documentation Index
+
+- `LLM_MODEL_SWITCHING_GUIDE.md`: Provider configuration and client-side switching helpers
+- `docs/EDA_SECURITY_GUIDE.md`: In-depth look at sandbox enforcement and code validation
+- `docs/MULTI_USER_ENHANCEMENTS.md`: Role-based access control and admin UX improvements
+- `docs/REAL_TIME_MONITORING_GUIDE.md`: Monitoring architecture and observability patterns
+- `core/eda/advanced_eda/README.md`: Advanced analysis runtime, generators, and component catalog
+
+## 🙏 Acknowledgments
+
+- **FastAPI**: Modern web framework for Python APIs
+- **Pandas**: Data manipulation and analysis library
+- **SQLAlchemy**: SQL toolkit and ORM
+- **Jupyter**: Interactive computing environment
+- **All Contributors**: Thanks to everyone who has contributed to this project
+
+---
+
+**Made with ❤️ for the Data Science Community**
+
+*Transform your data workflows with intelligent automation and secure analysis.*

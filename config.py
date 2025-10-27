@@ -179,7 +179,7 @@ class Settings(BaseSettings):
     # Database configuration options (migrated from Flask)
     DB_TYPE: str = "sqlite"  # sqlite or postgres
     DB_PRIMARY: str = "sqlite"  # primary database choice
-    DB_PATH: str = "mlops_database.db"  # SQLite database file path
+    DB_PATH: str = "database.db"  # SQLite database file path
     
     DB_PROVIDER: Optional[str] = None
     DB_USER: Optional[str] = None
@@ -732,12 +732,11 @@ class ProductionSettings(Settings):
     
     # More restrictive CORS in production
     CORS_ORIGINS: List[str] = [
-        "https://www.skyulf.com",
         "https://app.yourdomain.com"
     ]
     
     # Security headers and restrictions
-    ALLOWED_HOSTS: List[str] = ["skyulf.com", "app.yourdomain.com"]
+    ALLOWED_HOSTS: List[str] = ["app.yourdomain.com"]
     
     # Production security settings
     SESSION_COOKIE_SECURE: bool = True
