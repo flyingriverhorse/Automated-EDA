@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced EDA - {{ dataset_name or 'Dataset Analysis' }}</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- FontAwesome icons reused by data preview -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Plotly.js - Updated to latest version -->
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    
+    <!-- CodeMirror for code editing -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/theme/material-darker.css">
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/python/python.js"></script>
+    
+    <!-- Custom EDA CSS with Light/Dark Mode Support -->
+    <link href="{{ url_for('static', path='css/eda.css') }}" rel="stylesheet">
+    <!-- LLM chat widget styles shared with data preview & notebook -->
+    <link href="{{ url_for('static', path='css/llm_chat.css') }}" rel="stylesheet">
+    <!-- Data preview shared styles -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+    <link href="{{ url_for('static', path='css/data_preview.css') }}" rel="stylesheet">
+    <!-- Shared notification & overlay styles -->
+    <link href="{{ url_for('static', path='css/shared/notifications.css') }}" rel="stylesheet">
+    <!-- EDA Main styles moved to eda.css for better maintainability -->
+</head>
+<body class="eda-container" data-dataset-info='{{ dataset_info | default({}) | tojson }}'>
+    <!-- Loading overlay reused from data preview experience -->
+    <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+        <div class="loading-content" role="status" aria-live="polite">
+            <div class="loading-spinner"></div>
+            <h5 id="loadingTitle" class="mb-1">Loading...</h5>
+            <p id="loadingMessage" class="mb-0">Please wait while we process your request.</p>
+        </div>
+    </div>
+
+    <nav class="modern-nav eda-nav">
+        <div class="nav-container">
+            <div class="nav-links">
+                <a href="{{ url_for('data.data_dashboard') }}" class="nav-link">
+                    <i class="bi bi-cloud-arrow-up"></i> Data ingestion
+                </a>
+                <a href="#" class="nav-link active">
+                    <i class="bi bi-bar-chart"></i> Advanced EDA
+                </a>
+            </div>
+            <div class="nav-actions">
+                {% if current_user %}
+                    <span class="nav-greeting" id="edaNavGreeting">I know you could do it, {{ current_user.display_name }}!</span>
+                    <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                {% endif %}
+                <button class="theme-toggle-nav" id="themeToggleNav" type="button" title="Toggle theme" onclick="if(typeof toggleDarkMode === 'function') toggleDarkMode();">
+                    <i class="bi bi-moon-stars" id="themeToggleNavIcon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="eda-shell">
+        <header class="eda-hero">
+            <div class="eda-hero__content">
+                <span class="eda-hero__eyebrow">
+                    <i class="bi bi-stars me-2"></i>
+                    Exploratory data analysis
+                </span>
+                <div class="eda-hero__title-row">
+                    <h1 class="eda-hero__title" id="dataset-name">{{ dataset_name or 'Dataset Analysis' }}</h1>
+                    <div class="eda-hero__domain" aria-live="polite">
+                        <div class="eda-hero__domain-label text-muted">Domain detection</div>
+                        <div class="domain-compact">
+                            <button type="button" class="domain-compact-button" id="domainDetectButton" onclick="handleDomainButtonClick(event)" title="Click to view domain details. Hold Shift and click to refresh.">
+                                <span class="domain-compact-spinner spinner-border spinner-border-sm d-none" id="domainButtonSpinner" role="status" aria-hidden="true"></span>
+                                <span class="domain-compact-label" id="domainButtonLabel">Detect domain</span>
+                                <span class="domain-compact-separator d-none" id="domainButtonSeparator">&bull;</span>
+                                <span class="domain-compact-confidence d-none" id="domainButtonConfidence">—</span>
+                            </button>
+                        </div>
+                        <small class="eda-hero__domain-hint">Tip: Click the domain to learn more.</small>
+                    </div>
+                    <div class="eda-hero__actions">
+                        <button class="eda-hero__primary-btn" onclick="moveToFeatureEngineering()" title="Proceed to Feature Engineering">
+                            <i class="bi bi-rocket-takeoff"></i>
+                            <span>To the Feature Engineering!</span>
+                        </button>
+                    </div>
+                </div>
+                <p class="eda-hero__subtitle">Modern workspace to explore, automate, and narrate your dataset insights.</p>
+            </div>
+        </header>
+
+        <nav class="eda-tab-nav" id="edaTabs" role="tablist">
+            <button class="eda-tab-button preview-tab-btn" id="data-preview-tab" data-bs-toggle="tab" data-bs-target="#data-preview-content" type="button" role="tab" aria-controls="data-preview-content" aria-selected="false" data-tab="preview">
+                <i class="bi bi-table me-2"></i>
+                <span>Data Preview</span>
+            </button>
+            <button class="eda-tab-button preview-tab-btn" id="quality-report-tab" data-bs-toggle="tab" data-bs-target="#quality-content" type="button" role="tab" aria-controls="quality-content" aria-selected="false" data-tab="quality">
+                <i class="bi bi-clipboard-data me-2"></i>
+                <span>Data Quality Report</span>
+            </button>
+            <button class="eda-tab-button active" id="notebook-tab" data-bs-toggle="tab" data-bs-target="#notebook-content" type="button" role="tab" aria-controls="notebook-content" aria-selected="true">
+                <i class="bi bi-layers-half me-2"></i>
+                <span>Exploratory Data Analysis</span>
+            </button>
+            <button class="eda-tab-button" id="custom-analysis-tab" data-bs-toggle="tab" data-bs-target="#custom-analysis-content" type="button" role="tab" aria-controls="custom-analysis-content" aria-selected="false">
+                <i class="bi bi-code-slash me-2"></i>
+                <span>Custom-Code Analysis</span>
+            </button>
+            <button class="eda-tab-button preview-tab-btn" id="text-analysis-tab" data-bs-toggle="tab" data-bs-target="#text-content" type="button" role="tab" aria-controls="text-content" aria-selected="false" data-tab="text">
+                <i class="bi bi-chat-text me-2"></i>
+                <span>Text Analysis</span>
+            </button>
+            <button class="eda-tab-button preview-tab-btn" id="recommendations-tab" data-bs-toggle="tab" data-bs-target="#recommendations-content" type="button" role="tab" aria-controls="recommendations-content" aria-selected="false" data-tab="recommendations">
+                <i class="bi bi-lightbulb me-2"></i>
+                <span>Recommendations</span>
+            </button>
+        </nav>
+
+        <main class="eda-tab-panels">
+            <div class="tab-content" id="edaTabsContent">
+                <div class="tab-pane fade" id="data-preview-content" role="tabpanel" aria-labelledby="data-preview-tab" data-preview-tab="preview">
+                    {% include 'eda/data_preview_tab.html' %}
+                </div>
+                <div class="tab-pane fade" id="quality-content" role="tabpanel" aria-labelledby="quality-report-tab" data-preview-tab="quality">
+                    {% include 'eda/data_quality_tab.html' %}
+                </div>
+                <div class="tab-pane fade show active" id="notebook-content" role="tabpanel" aria-labelledby="notebook-tab">
+                    {% include 'eda/notebook_tab.html' %}
+                </div>
+                <div class="tab-pane fade" id="custom-analysis-content" role="tabpanel" aria-labelledby="custom-analysis-tab">
+                    {% include 'eda/custom_analysis_tab.html' %}
+                </div>
+
+                <div class="tab-pane fade" id="text-content" role="tabpanel" aria-labelledby="text-analysis-tab" data-preview-tab="text">
+                    {% include 'eda/text_analysis_tab.html' %}
+                </div>
+                <div class="tab-pane fade" id="recommendations-content" role="tabpanel" aria-labelledby="recommendations-tab" data-preview-tab="recommendations">
+                    {% include 'eda/recommendations_tab.html' %}
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery & DataTables for preview modules -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- Shared notifications -->
+    <script src="{{ url_for('static', path='js/shared/notifications.js') }}"></script>
+
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', path='js/eda/tab-manager.js') }}"></script>
+    <script src="{{ url_for('static', path='js/eda/eda-renderer.js') }}"></script>
+    <script src="{{ url_for('static', path='js/eda/export-manager.js') }}"></script>
+    <script src="{{ url_for('static', path='js/eda/eda-navigation.js') }}"></script>
+    <script src="{{ url_for('static', path='js/eda/custom_analysis.js') }}"></script>
+    <script src="{{ url_for('static', path='js/eda/rate-limit-monitor.js') }}"></script>
+    <script src="{{ url_for('static', path='js/llm_chat.js') }}"></script>
+    <script src="{{ url_for('static', path='js/data_preview/data_table.js') }}"></script>
+    <script src="{{ url_for('static', path='js/data_preview/quality_report.js') }}"></script>
+    <script src="{{ url_for('static', path='js/data_preview/text_analysis.js') }}"></script>
+    <script src="{{ url_for('static', path='js/data_preview/recommendations.js') }}"></script>
+    <script src="{{ url_for('static', path='js/data_preview/preview_page.js') }}"></script>
+    
+    <script>
+        const datasetInfoAttribute = document.body?.getAttribute('data-dataset-info');
+        let parsedDatasetInfo = {};
+
+        if (datasetInfoAttribute) {
+            try {
+                parsedDatasetInfo = JSON.parse(datasetInfoAttribute);
+            } catch (error) {
+                console.warn('Failed to parse dataset info attribute:', error);
+            }
+        }
+
+        let currentDataset = {
+            source_id: "{{ source_id or '' }}",
+            name: "{{ dataset_name or '' }}",
+            info: parsedDatasetInfo
+        };
+
+        window.DATA_PREVIEW_CONFIG = {
+            sourceId: currentDataset.source_id || null,
+            apiBasePath: '/eda/api/sources',
+            previewSampleSize: 100,
+            previewMode: 'first_last'
+        };
+        
+        // Initialize EDA platform
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing Advanced EDA Platform...');
+            
+            // Initialize tab manager
+            if (typeof window.tabManager !== 'undefined') {
+                window.tabManager.initialize();
+            }
+            
+            // Initialize EDA renderer
+            if (typeof window.edaRenderer !== 'undefined') {
+                window.edaRenderer.initialize();
+            }
+            
+            // Initialize export manager
+            if (typeof window.exportManager !== 'undefined') {
+                window.exportManager.initialize();
+            }
+            
+            // Load dataset info if available
+            if (currentDataset.source_id) {
+                refreshDatasetInfo();
+            }
+
+            if (window.EDAChatBridge?.setNotebookMeta) {
+                window.EDAChatBridge.setNotebookMeta({
+                    sourceId: currentDataset.source_id || null,
+                    datasetName: currentDataset.name || document.getElementById('dataset-name')?.textContent?.trim() || null,
+                    datasetInfo: currentDataset.info || null
+                });
+            }
+
+            wireDataPreviewNavLink();
+
+            const pollingStarter = window.DI?.utilities?.notifications?.startNotificationPolling
+                || window.startNotificationPolling
+                || null;
+
+            if (typeof pollingStarter === 'function') {
+                pollingStarter({ intervalMs: 60000, immediate: true });
+            } else if (typeof window.checkForNotifications === 'function') {
+                window.checkForNotifications();
+            }
+        });
+        
+        // Utility functions
+        function refreshDatasetInfo() {
+            if (!currentDataset.source_id) {
+                console.warn('No dataset source_id available');
+                return;
+            }
+            
+            fetch(`/advanced-eda/api/data-sources/${currentDataset.source_id}/info`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateDatasetDisplay(data);
+                    } else {
+                        console.error('Dataset info error:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing dataset info:', error);
+                    showNotification('Error refreshing dataset info', 'error');
+                });
+        }
+        
+        function updateDatasetDisplay(data) {
+            // Update main dataset info if elements exist
+            const datasetNameEl = document.getElementById('dataset-name');
+            
+            if (datasetNameEl) datasetNameEl.textContent = data.name || 'Dataset Analysis';
+            
+            // Update notebook tab dataset name if it exists
+            const notebookDatasetNameEl = document.getElementById('datasetName');
+            if (notebookDatasetNameEl) {
+                notebookDatasetNameEl.textContent = data.name || 'Unknown Dataset';
+            }
+
+            currentDataset = {
+                ...currentDataset,
+                source_id: data.source_id || currentDataset.source_id,
+                name: data.name || currentDataset.name,
+                info: { ...currentDataset.info, ...data }
+            };
+
+            window.DATA_PREVIEW_CONFIG = {
+                ...window.DATA_PREVIEW_CONFIG,
+                sourceId: currentDataset.source_id || window.DATA_PREVIEW_CONFIG?.sourceId || null
+            };
+
+            wireDataPreviewNavLink();
+
+            if (window.EDAChatBridge?.setNotebookMeta) {
+                window.EDAChatBridge.setNotebookMeta({
+                    sourceId: currentDataset.source_id || null,
+                    datasetName: currentDataset.name || null,
+                    datasetInfo: currentDataset.info || null
+                });
+            }
+            
+        }
+        
+        function handleDataPreviewNav(event) {
+            if (!currentDataset.source_id) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (window.tabManager) {
+                window.tabManager.setActiveTab('quality-content');
+            } else if (typeof bootstrap !== 'undefined') {
+                const tabButton = document.querySelector('[data-bs-target="#quality-content"]');
+                if (tabButton) {
+                    bootstrap.Tab.getOrCreateInstance(tabButton).show();
+                }
+            }
+
+            if (window.DI?.previewPage?.loadDataForTab) {
+                window.DI.previewPage.loadDataForTab('quality');
+            }
+        }
+
+        function wireDataPreviewNavLink() {
+            const dataPreviewLink = document.getElementById('navDataPreviewLink');
+            if (!dataPreviewLink) {
+                return;
+            }
+
+            dataPreviewLink.removeEventListener('click', handleDataPreviewNav);
+
+            if (currentDataset.source_id) {
+                dataPreviewLink.href = '#quality';
+                dataPreviewLink.addEventListener('click', handleDataPreviewNav);
+            } else {
+                dataPreviewLink.href = '{{ url_for("data.data_dashboard") }}';
+            }
+        }
+
+        // Theme Toggle Functionality
+        function syncThemeIcons(isDarkMode) {
+            const themeToggleNavIcon = document.getElementById('themeToggleNavIcon');
+
+            if (themeToggleNavIcon) {
+                themeToggleNavIcon.className = isDarkMode ? 'bi bi-sun' : 'bi bi-moon-stars';
+            }
+        }
+
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('eda-theme') || 'light';
+            const body = document.body;
+            const isDarkMode = savedTheme === 'dark';
+
+            body.classList.toggle('dark-mode', isDarkMode);
+            syncThemeIcons(isDarkMode);
+        }
+        
+        function toggleTheme() {
+            const body = document.body;
+            const isDarkMode = body.classList.contains('dark-mode');
+            
+            if (isDarkMode) {
+                body.classList.remove('dark-mode');
+                localStorage.setItem('eda-theme', 'light');
+                syncThemeIcons(false);
+            } else {
+                body.classList.add('dark-mode');
+                localStorage.setItem('eda-theme', 'dark');
+                syncThemeIcons(true);
+            }
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTheme();
+            
+            const themeToggleNav = document.getElementById('themeToggleNav');
+            if (themeToggleNav) {
+                themeToggleNav.addEventListener('click', toggleTheme);
+            }
+        });
+
+        // Navigation function for Feature Engineering
+        function moveToFeatureEngineering() {
+            if (!currentDataset.source_id) {
+                showNotification('Please load a dataset first before proceeding to Feature Engineering.', 'warning');
+                return;
+            }
+            
+            // Show loading indicator
+            showNotification('Preparing Feature Engineering environment...', 'info');
+            
+            // Navigate to Feature Engineering page (to be implemented)
+            const featureEngineeringUrl = `/feature-engineering/${currentDataset.source_id}`;
+            window.location.href = featureEngineeringUrl;
+        }
+    </script>
+</body>
+</html>

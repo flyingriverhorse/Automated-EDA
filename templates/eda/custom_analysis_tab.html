@@ -1,0 +1,280 @@
+<!-- Custom Analysis Tab - Dedicated interface for custom code and advanced analysis -->
+<div class="custom-analysis-container w-100">
+    <!-- Theme Detection Script -->
+    <script>
+    (function() {
+        try {
+            const savedTheme = localStorage.getItem('eda-theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+        } catch (e) { /* ignore */ }
+    })();
+    </script>
+
+    <section class="custom-analysis-header" aria-label="Custom notebook overview">
+        <div class="custom-analysis-header__primary">
+            <div class="custom-analysis-header__top">
+                <div class="custom-analysis-header__intro">
+                    <span class="custom-analysis-eyebrow">
+                        <i class="bi bi-lightning-charge-fill me-2"></i>Custom notebook
+                    </span>
+                    <h3 class="custom-analysis-title">Design bespoke experiments</h3>
+                    <p class="custom-analysis-subtitle">
+                        Iterate with the live dataset context (<code>df</code>) and keep annotated notes beside each executable cell.
+                    </p>
+                </div>
+            </div>
+            <div class="custom-analysis-shortcuts" aria-label="Keyboard shortcuts">
+                <div class="shortcut-chip">
+                    <span class="shortcut-chip__keys"><kbd>Shift</kbd><kbd>Enter</kbd></span>
+                    <span class="shortcut-chip__label">Run cell</span>
+                </div>
+                <div class="shortcut-chip">
+                    <span class="shortcut-chip__keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
+                    <span class="shortcut-chip__label">Run in place</span>
+                </div>
+                <div class="shortcut-chip">
+                    <span class="shortcut-chip__keys"><kbd>Alt</kbd><kbd>Z</kbd></span>
+                    <span class="shortcut-chip__label">Toggle wrap</span>
+                </div>
+            </div>
+        </div>
+        <div class="custom-analysis-monitor" aria-live="polite">
+            <div class="custom-analysis-monitor__heading">
+                <span class="monitor-icon"><i class="bi bi-speedometer2"></i></span>
+                <div>
+                    <strong>Resource monitor</strong>
+                    <small>API &amp; runtime usage</small>
+                </div>
+            </div>
+            <div id="rateLimitDisplay" class="rate-limit-display custom-rate-limit-widget">
+                <div class="text-muted">Loading resource telemetry...</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="custom-analysis-toolbar" aria-label="Custom analysis controls">
+        <div class="custom-analysis-toolbar__group">
+            <button class="btn btn-primary custom-toolbar-btn" onclick="addCustomCodeCell()" title="Add a Python code cell">
+                <i class="bi bi-plus-circle me-1"></i>New code cell
+            </button>
+            <button class="btn btn-outline-secondary custom-toolbar-btn" onclick="addCustomMarkdownCell()" title="Insert a Markdown note">
+                <i class="bi bi-markdown me-1"></i>Markdown note
+            </button>
+            <button class="btn btn-success custom-toolbar-btn" onclick="runAllCells()" title="Execute all cells in order">
+                <i class="bi bi-play-circle me-1"></i>Run all
+            </button>
+            <button class="btn btn-outline-danger custom-toolbar-btn" onclick="deleteAllCells()" title="Remove every custom cell">
+                <i class="bi bi-trash3 me-1"></i>Clear workspace
+            </button>
+        </div>
+        <div class="custom-analysis-toolbar__group custom-analysis-toolbar__group--secondary">
+            <button class="btn btn-outline-secondary custom-toolbar-btn" id="importCodeBtn" title="Import a .py or .txt file">
+                <i class="bi bi-upload me-1"></i>Import code
+            </button>
+            <button class="btn btn-outline-secondary custom-toolbar-btn" onclick="showVariablesInfo()" title="Preview available variables">
+                <i class="bi bi-code-square me-1"></i>Variables
+            </button>
+        </div>
+    </section>
+
+    <section class="custom-analysis-workspace" aria-label="Custom analysis workspace">
+        <div class="custom-code-cells" id="customCodeCells">
+            <!-- Custom analysis entries are injected here -->
+        </div>
+        <div class="custom-analysis-empty" id="customAnalysisEmptyState">
+            <div class="custom-analysis-empty__illustration">
+                <i class="bi bi-layout-text-window"></i>
+            </div>
+            <h5>Build your first custom insight</h5>
+            <p>Add a Python cell for experiments or drop a Markdown note to capture findings as you go.</p>
+            <div class="custom-analysis-empty__actions">
+                <button class="btn btn-primary" onclick="addCustomCodeCell()"><i class="bi bi-plus-circle me-1"></i>New code cell</button>
+                <button class="btn btn-outline-secondary" onclick="addCustomMarkdownCell()"><i class="bi bi-markdown me-1"></i>Markdown note</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Floating Action Buttons -->
+    <div class="floating-buttons position-fixed custom-floating-buttons">
+        <!-- Examples Button -->
+        <button class="btn btn-info rounded-circle shadow-lg mb-2 d-block custom-floating-button" 
+                id="showExamplesBtn" 
+                title="Show Code Examples">
+            <i class="bi bi-collection"></i>
+        </button>
+        <!-- Markdown Button -->
+        <button class="btn btn-warning rounded-circle shadow-lg mb-2 d-block custom-floating-button" 
+                id="addMarkdownBtn" 
+                title="Add Markdown Note">
+            <i class="bi bi-markdown"></i>
+        </button>
+
+        <!-- Toggle Wrap Button -->
+        <button class="btn btn-outline-info rounded-circle shadow-lg mb-2 d-block custom-floating-button" 
+                id="toggleWrapFloatingBtn" 
+                title="Toggle editor word wrap" aria-pressed="false">
+            <i class="bi bi-text-wrap"></i>
+        </button>
+
+        <!-- Add Cell Button -->
+        <button class="btn btn-success rounded-circle shadow-lg d-block custom-floating-button" 
+                id="addCellBtn" 
+                title="Add New Code Cell">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+    </div>
+
+    <!-- Examples Panel Overlay -->
+    <div class="examples-panel-overlay" id="examplesPanelOverlay"></div>
+    
+    <!-- Examples Panel (Side Panel) -->
+    <div class="examples-panel" id="examplesPanel">
+        <div class="examples-panel-header">
+            <span><i class="bi bi-collection me-2"></i>Code Examples</span>
+            <button class="examples-panel-close" id="closeExamplesBtn">×</button>
+        </div>
+        <div class="examples-panel-content">
+            <div class="mb-4">
+                <h6><i class="bi bi-bar-chart me-2"></i>Basic Analysis</h6>
+                <div class="example-item" data-code="basic_info">
+                    <i class="bi bi-info-circle-fill text-primary me-2"></i>Dataset Info & Shape
+                </div>
+                <div class="example-item" data-code="missing_values">
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Missing Values Analysis
+                </div>
+                <div class="example-item" data-code="correlation_heatmap">
+                    <i class="bi bi-grid-3x3-gap-fill text-success me-2"></i>Correlation Heatmap
+                </div>
+                <div class="example-item" data-code="distribution_plots">
+                    <i class="bi bi-graph-up text-info me-2"></i>Distribution Plots
+                </div>
+            </div>
+            
+            <div>
+                <h6><i class="bi bi-gear me-2"></i>Advanced Analysis</h6>
+                <div class="example-item" data-code="pca_analysis">
+                    <i class="bi bi-diagram-3-fill text-primary me-2"></i>PCA Analysis
+                </div>
+                <div class="example-item" data-code="outlier_detection">
+                    <i class="bi bi-bullseye text-danger me-2"></i>Outlier Detection
+                </div>
+                <div class="example-item" data-code="feature_importance">
+                    <i class="bi bi-star-fill text-warning me-2"></i>Feature Importance
+                </div>
+                <div class="example-item" data-code="clustering_analysis">
+                    <i class="bi bi-circle-square text-success me-2"></i>Clustering Analysis
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Analysis Styles moved to eda.css for better maintainability -->
+
+<!-- Custom Analysis JavaScript -->
+<script src="/static/js/eda/custom_analysis.js"></script>
+
+<!-- Rate Limit Monitor Initialization -->
+<script>
+// Ensure rate limit monitor is initialized for this tab
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Custom Analysis Tab: DOM loaded, initializing rate limit monitor...');
+    
+    // Wait a moment for scripts to load
+    setTimeout(function() {
+        // Force initialization if the global function exists
+        if (typeof initRateLimitMonitor === 'function') {
+            initRateLimitMonitor();
+        } else if (window.RateLimitMonitor) {
+            // Fallback: create monitor directly
+            if (!window.rateLimitMonitor) {
+                window.rateLimitMonitor = new window.RateLimitMonitor();
+                console.log('Rate limit monitor created directly');
+            }
+        } else {
+            console.warn('Rate limit monitor not available');
+        }
+    }, 1000);
+});
+
+// Also try when tab becomes active
+document.addEventListener('shown.bs.tab', function(e) {
+    if (e.target.getAttribute('data-bs-target') === '#custom-analysis-content') {
+        console.log('Custom Analysis Tab activated');
+        setTimeout(function() {
+            if (typeof initRateLimitMonitor === 'function') {
+                initRateLimitMonitor();
+            }
+        }, 500);
+    }
+});
+
+// Examples Panel functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const showExamplesBtn = document.getElementById('showExamplesBtn');
+    const examplesPanel = document.getElementById('examplesPanel');
+    const closeExamplesBtn = document.getElementById('closeExamplesBtn');
+    const examplesPanelOverlay = document.getElementById('examplesPanelOverlay');
+    const exampleItems = document.querySelectorAll('.example-item');
+
+    // Show examples panel
+    if (showExamplesBtn) {
+        showExamplesBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Debounce rapid clicks
+            if (this.disabled) return;
+            this.disabled = true;
+            setTimeout(() => { this.disabled = false; }, 300);
+            
+            console.log('Opening Examples panel...');
+            examplesPanel.classList.add('show');
+            examplesPanelOverlay.classList.add('show');
+        });
+    }
+
+    // Close examples panel
+    function closeExamplesPanel() {
+        examplesPanel.classList.remove('show');
+        examplesPanelOverlay.classList.remove('show');
+    }
+
+    if (closeExamplesBtn) {
+        closeExamplesBtn.addEventListener('click', closeExamplesPanel);
+    }
+
+    if (examplesPanelOverlay) {
+        examplesPanelOverlay.addEventListener('click', closeExamplesPanel);
+    }
+
+    // Handle example item clicks
+    exampleItems.forEach(function(item) {
+        item.addEventListener('click', function() {
+            const codeType = this.getAttribute('data-code');
+            console.log('Example clicked:', codeType);
+            
+            // Call the existing custom analysis function to insert code
+            if (typeof insertExampleCode === 'function') {
+                insertExampleCode(codeType);
+            } else if (typeof window.insertExampleCode === 'function') {
+                window.insertExampleCode(codeType);
+            } else {
+                console.warn('insertExampleCode function not found');
+            }
+            
+            // Close the panel after selecting an example
+            closeExamplesPanel();
+        });
+    });
+
+    // Close panel with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && examplesPanel.classList.contains('show')) {
+            closeExamplesPanel();
+        }
+    });
+});
+</script>

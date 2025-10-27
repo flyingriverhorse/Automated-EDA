@@ -1,0 +1,1380 @@
+<!-- Interactive Notebook-Style EDA Interface - Modern Minimal Layout -->
+<div class="notebook-tab">
+    <!-- Theme Detection Script -->
+    <script>
+    (function() {
+        try {
+            const savedTheme = localStorage.getItem('eda-theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+        } catch (e) { /* ignore */ }
+    })();
+    </script>
+
+    <div class="notebook-grid">
+        <section class="notebook-main">
+            <div class="notebook-card notebook-overview-card">
+                <div class="overview-card-header">
+                    <div>
+                        <h4 class="notebook-heading mb-1">Dataset overview</h4>
+                    </div>
+                    <div class="overview-card-actions">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="refreshColumnInsights()" title="Refresh column metrics">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#columnInsightsModal">
+                            <i class="bi bi-columns-gap me-1"></i> Open column explorer
+                        </button>
+                    </div>
+                </div>
+                <div class="overview-card-body">
+                    <div class="overview-section overview-section--columns">
+                        <h6 class="overview-section-title"><i class="bi bi-columns-gap me-2"></i>Column insights</h6>
+                        <p class="overview-section-subtitle text-muted mb-3">Key coverage metrics stay visible here. Open the explorer for full controls and <strong>Choose Columns to use in analysis (Optional).</strong></p>
+                        <div id="columnSummaryLoading" class="overview-state">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span>Loading summary…</span>
+                        </div>
+                        <div id="columnSummaryError" class="overview-state overview-state--error d-none">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <div>
+                                <p class="mb-1">Column summary unavailable.</p>
+                                <button class="btn btn-link btn-sm p-0 align-baseline" onclick="refreshColumnInsights()">Try again</button>
+                            </div>
+                        </div>
+                        <div id="columnSummaryContent" class="column-summary d-none">
+                            <div class="column-summary-inline" role="list">
+                                <div class="summary-inline-item" role="listitem">
+                                    <span class="summary-inline-icon summary-inline-icon--total" aria-hidden="true"><i class="bi bi-grid-3x2-gap"></i></span>
+                                    <div class="summary-inline-copy">
+                                        <span class="summary-inline-value" id="totalColumns">—</span>
+                                        <span class="summary-inline-label">Total columns</span>
+                                    </div>
+                                </div>
+                                <div class="summary-inline-item" role="listitem">
+                                    <span class="summary-inline-icon summary-inline-icon--selected" aria-hidden="true"><i class="bi bi-check2-square"></i></span>
+                                    <div class="summary-inline-copy">
+                                        <span class="summary-inline-value" id="selectedColumns">—</span>
+                                        <span class="summary-inline-label">Columns selected</span>
+                                    </div>
+                                </div>
+                                <div class="summary-inline-item" role="listitem">
+                                    <span class="summary-inline-icon summary-inline-icon--flagged" aria-hidden="true"><i class="bi bi-flag-fill"></i></span>
+                                    <div class="summary-inline-copy">
+                                        <span class="summary-inline-value" id="problematicColumns">—</span>
+                                        <span class="summary-inline-label">Flagged columns</span>
+                                    </div>
+                                </div>
+                                <div class="summary-inline-item" role="listitem">
+                                    <span class="summary-inline-icon summary-inline-icon--missing" aria-hidden="true"><i class="bi bi-droplet-half"></i></span>
+                                    <div class="summary-inline-copy">
+                                        <span class="summary-inline-value" id="missingRatioLabel">—</span>
+                                        <span class="summary-inline-label">Missing coverage</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="column-summary-tags" role="list">
+                                <span class="summary-tag" id="numericColumns" role="listitem">— numeric</span>
+                                <span class="summary-tag" id="textColumns" role="listitem">— text</span>
+                                <span class="summary-tag" id="datetimeColumns" role="listitem">— datetime</span>
+                                <span class="summary-tag" id="booleanColumns" role="listitem">— boolean</span>
+                                <span class="summary-tag" id="otherColumns" role="listitem">— other</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="notebook-card notebook-analysis-card">
+                <div class="notebook-card-header">
+                    <div>
+                        <h6 class="notebook-card-title mb-0"><i class="bi bi-gear-fill me-2"></i>Analysis catalogue</h6>
+                        <p class="notebook-card-subtitle mb-0">Click a category to explore options. Select multiple to queue insights.</p>
+                    </div>
+                    <div class="analysis-header-actions">
+                        <span id="preprocessingStatusBadge" class="badge bg-secondary-subtle text-body-secondary">Analysis categories available • preprocessing optional</span>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="openPreprocessingConfigBtn">
+                            <i class="bi bi-sliders"></i>
+                            Configure preprocessing For EDA
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-3" id="resetPreprocessingBtn" title="Reset restores the original dataset so you can start over at any time.">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                            Reset Dataset
+                        </button>
+                        <small class="text-muted d-block w-100 text-end">Reset restores the original dataset so you can start over at any time.</small>
+
+                    </div>
+                </div>
+                <div class="notebook-card-body">
+                    <div class="analysis-layout-container">
+                        <div class="analysis-cards-grid" id="analysisCardsGrid">
+                            <div class="analysis-catalogue-loading" id="analysisCatalogueLoading">
+                                <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
+                                <span>Loading analysis catalogue…</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Selected Categories Sidebar - Right Side -->
+                        <aside class="selected-categories-sidebar" id="selectedCategoriesSidebar">
+                            <div class="sidebar-header">
+                                <h6><i class="bi bi-list-check me-2"></i>Selected analyses</h6>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearCategoriesBtn" disabled>
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                            <div class="sidebar-content" id="sidebarContent">
+                                <div class="sidebar-empty-state">
+                                    <i class="bi bi-magic"></i>
+                                    <span>Select analyses from the catalogue to build your queue.</span>
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
+                    <div class="connection-lines" id="connectionLines"></div>
+
+                </div>
+            </div>
+            <div class="notebook-card notebook-cells-card">
+                <div class="notebook-card-header">
+                    <div>
+                        <h6 class="notebook-card-title mb-0"><i class="bi bi-collection-play me-2"></i>Analysis results</h6>
+                        <p class="notebook-card-subtitle mb-0">Your queued analyses render here with formatted tables, charts, and narratives.</p>
+                    </div>
+                </div>
+                <div class="notebook-card-body">
+                    <div id="analysisResultsPlaceholder" class="analysis-results-placeholder" aria-hidden="false">
+                        <i class="bi bi-clipboard-data"></i>
+                        <div>
+                            <p class="mb-1">Start by selecting one or more analyses from the catalogue above.</p>
+                            <small class="text-muted">We’ll stream insights here as soon as each run completes.</small>
+                        </div>
+                    </div>
+                    <div class="analysis-results" id="notebookCells" aria-live="polite"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+</div>
+
+<!-- Column Insights Modal -->
+<div class="modal fade" id="columnInsightsModal" tabindex="-1" aria-labelledby="columnInsightsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content column-insights-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="columnInsightsModalTitle">Column explorer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="columnInsightsLoading" class="notebook-state">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <div>
+                        <p class="mb-1">Loading column data…</p>
+                        <small class="text-muted">This may take a few seconds for larger datasets.</small>
+                    </div>
+                </div>
+
+                <div id="columnInsightsContent" class="column-insights-content d-none">
+                    <div class="column-actions">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Column selection shortcuts">
+                            <button class="btn btn-outline-primary" onclick="selectAllColumns()" title="Select all columns">
+                                <i class="bi bi-check-all"></i> All
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="deselectAllColumns()" title="Deselect all columns">
+                                <i class="bi bi-x"></i> None
+                            </button>
+                            <button class="btn btn-outline-success" onclick="selectRecommendedColumns()" title="Select recommended columns only">
+                                <i class="bi bi-star"></i> Recommended
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="column-recommendations d-none" id="columnRecommendations">
+                        <div class="section-title">Automatic notices</div>
+                        <div class="column-recommendations-list" id="columnRecommendationList"></div>
+                    </div>
+
+                    <div class="column-filters" role="group" aria-label="Column filters">
+                        <div class="column-search">
+                            <i class="bi bi-search"></i>
+                            <input type="search" id="columnSearchInput" placeholder="Search columns by name" aria-label="Search columns">
+                        </div>
+                        <div class="column-filter-buttons">
+                            <button type="button" class="column-filter-button active" data-column-filter="all">All</button>
+                            <button type="button" class="column-filter-button" data-column-filter="issues">Issues</button>
+                            <button type="button" class="column-filter-button" data-column-filter="selected">Selected</button>
+                            <button type="button" class="column-filter-button" data-column-filter="numeric">Numeric</button>
+                            <button type="button" class="column-filter-button" data-column-filter="text">Text</button>
+                            <button type="button" class="column-filter-button" data-column-filter="datetime">Datetime</button>
+                            <button type="button" class="column-filter-button" data-column-filter="boolean">Boolean</button>
+                        </div>
+                    </div>
+
+                    <div class="column-items-wrapper">
+                        <div id="columnItems" class="column-items">
+                            <!-- Column items will be populated dynamically -->
+                        </div>
+                        <div id="columnEmptyState" class="column-empty-state d-none" role="status">
+                            <i class="bi bi-emoji-neutral"></i>
+                            <p class="mb-0">No columns match the current filters.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="columnInsightsError" class="d-none notebook-state notebook-state--error">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p class="mb-1">Unable to load column data.</p>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="refreshColumnInsights()">
+                        <i class="bi bi-arrow-clockwise"></i> Retry
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preprocessing Configuration Modal -->
+<div class="modal fade" id="preprocessingConfigModal" tabindex="-1" aria-labelledby="preprocessingConfigModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content preprocessing-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="preprocessingConfigModalTitle">
+                    <i class="bi bi-sliders"></i> Preprocessing EDA
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 px-3 small mb-3">
+                    <strong>Workflow tip:</strong> Start by dropping obvious problem columns before running your first analyses. After you review the EDA results you can revisit preprocessing to apply imputations, outlier handling, and other refinements.
+                </div>
+                <div class="preprocessing-section">
+                    <h6 class="section-title">Missing data handling</h6>
+                    <div class="preprocessing-control">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="preprocessDropColumnsToggle" data-preprocessing-input>
+                            <label class="form-check-label" for="preprocessDropColumnsToggle">Drop columns with missing data above</label>
+                        </div>
+                        <div class="input-group input-group-sm mt-2">
+                            <input type="number" min="0" max="100" step="1" class="form-control" id="preprocessDropColumnsThreshold" data-preprocessing-input>
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <small class="text-muted">Columns exceeding the threshold will be removed before any runtime analysis.</small>
+                    </div>
+                    <div class="preprocessing-control mt-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="preprocessDropRowsToggle" data-preprocessing-input>
+                            <label class="form-check-label" for="preprocessDropRowsToggle">Drop rows with missing data above</label>
+                        </div>
+                        <div class="input-group input-group-sm mt-2">
+                            <input type="number" min="0" max="100" step="1" class="form-control" id="preprocessDropRowsThreshold" data-preprocessing-input>
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <small class="text-muted">Rows over the threshold will be removed to reduce sparsity.</small>
+                    </div>
+
+                    <div class="preprocessing-control mt-3">
+                        <label class="form-label small text-uppercase fw-semibold" for="preprocessManualDropColumns">Drop these columns</label>
+                        <div class="d-flex flex-column gap-2">
+                            <select class="form-select form-select-sm" id="preprocessManualDropColumns" multiple size="6"></select>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="applyDropRecommendationsBtn">
+                                    Add suggested columns
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" id="removeSelectedDropColumnsBtn">
+                                    Remove selected
+                                </button>
+                                <div id="preprocessDropRecommendations" class="text-muted small flex-grow-1"></div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Choose one or more columns to remove automatically before analysis runs.</small>
+                    </div>
+                </div>
+
+                <div class="preprocessing-section">
+                    <h6 class="section-title">Duplicates &amp; imputation</h6>
+                    <div class="preprocessing-control">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="preprocessDropDuplicatesToggle" data-preprocessing-input>
+                            <label class="form-check-label" for="preprocessDropDuplicatesToggle">Remove duplicate rows</label>
+                        </div>
+                        <small class="text-muted d-block mt-1">Ensures each observation appears only once before analyses run.</small>
+                    </div>
+                    <div class="preprocessing-control mt-3">
+                        <label class="form-label small text-uppercase fw-semibold" for="preprocessImputationStrategy">Imputation strategy</label>
+                        <select class="form-select form-select-sm" id="preprocessImputationStrategy" data-preprocessing-input>
+                            <option value="none">None (leave missing values)</option>
+                            <option value="mean">Mean (numeric columns)</option>
+                            <option value="median">Median (numeric columns)</option>
+                            <option value="most_frequent">Most frequent (mixed types)</option>
+                            <option value="constant">Constant value</option>
+                            <option value="knn">KNN imputer (numeric columns)</option>
+                        </select>
+                        <div id="imputationConstantGroup" class="mt-2 d-none">
+                            <label class="form-label small" for="preprocessImputationFillValue">Fill value for constant strategy</label>
+                            <input type="text" class="form-control form-control-sm" id="preprocessImputationFillValue" placeholder="e.g. 0 or missing" data-preprocessing-input>
+                        </div>
+                        <div id="imputationNeighborsGroup" class="mt-2 d-none">
+                            <label class="form-label small" for="preprocessImputationNeighbors">KNN neighbours</label>
+                            <input type="number" min="1" max="15" step="1" class="form-control form-control-sm" id="preprocessImputationNeighbors" data-preprocessing-input>
+                        </div>
+                        <small class="text-muted d-block mt-2">Choose how missing values should be imputed after dropping columns/rows.</small>
+                    </div>
+                </div>
+
+                <div class="preprocessing-section">
+                    <h6 class="section-title">Outlier handling guidance</h6>
+                    <p class="text-muted small mb-2">Use the distribution and outlier analyses to decide how you want to treat extreme values. Common approaches include:</p>
+                    <ul class="small ps-3 mb-2">
+                        <li><strong>Cap (winsorize):</strong> Clip values beyond a percentile threshold to reduce their influence while keeping them in the dataset.</li>
+                        <li><strong>Transform:</strong> Apply log, Box-Cox, or z-score scaling to stretch or compress heavy tails.</li>
+                        <li><strong>Remove:</strong> Drop rows that represent data-entry errors or impossible values once you confirm they are noise.</li>
+                    </ul>
+                    <p class="text-muted small mb-0">Document your choice in the analysis notes. After capping or transforming you can re-run the affected analyses or proceed to modeling with the adjusted dataset.</p>
+                </div>
+
+                <div class="preprocessing-section">
+                    <h6 class="section-title">Impact preview</h6>
+                    <p class="text-muted small" id="preprocessingPreviewSummary">No preprocessing changes configured yet.</p>
+                    <div id="preprocessingPreviewList" class="preprocessing-preview-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto text-start">
+                    <small class="text-muted" id="preprocessingModalStatus">Drop the worst offenders first, run a quick analysis pass, then return here for imputation or outlier adjustments. Need a fresh start later? Use Reset preprocessing in the analysis catalogue header.</small>
+                </div>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyPreprocessingBtn">Apply preprocessing</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+            <!-- Target Analysis Configuration Modal -->
+            <div class="modal fade" id="targetAnalysisModal" tabindex="-1" aria-labelledby="targetAnalysisModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content target-analysis-modal">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="targetAnalysisModalLabel">
+                                <i class="bi bi-bullseye"></i>
+                                <span>Configure Target Variable Analysis</span>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="text-muted mb-3" id="targetModalSubtitle">
+                                Choose one or more candidate target columns. We will profile class balance for categorical targets and value spread for regression targets.
+                            </p>
+
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 target-modal-toolbar">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Target selection helpers">
+                                    <button type="button" class="btn btn-outline-primary" id="targetModalRecommendBtn">
+                                        <i class="bi bi-magic"></i>
+                                        <span>Use suggestions</span>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="targetModalClearBtn">
+                                        <i class="bi bi-eraser"></i>
+                                        <span>Clear</span>
+                                    </button>
+                                </div>
+                                <div class="ms-auto w-100 w-sm-auto target-search-group">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="search" class="form-control" id="targetColumnSearch" placeholder="Search columns" aria-label="Search target columns">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <h6 class="text-uppercase small text-muted mb-2">Recommended targets</h6>
+                                <div id="targetRecommendationChips" class="d-flex flex-wrap gap-2">
+                                    <span class="text-muted small">Gathering column insights&hellip;</span>
+                                </div>
+                            </div>
+
+                            <div class="card target-columns-card mb-3">
+                                <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-bullseye"></i>
+                                        <strong>Candidate target columns</strong>
+                                    </div>
+                                    <span class="badge rounded-pill bg-light-subtle text-muted">Select up to 3 columns</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="targetColumnList" class="list-group target-column-list" role="group" aria-label="Available target columns">
+                                        <div class="text-muted small px-2 py-3">Loading target candidates&hellip;</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-secondary" id="targetSelectionSummary" role="status">
+                                Select at least one target column to continue.
+                            </div>
+                        </div>
+                        <div class="modal-footer d-flex justify-content-between align-items-center">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </button>
+                            <button type="button" class="btn btn-primary" id="targetModalConfirmBtn">
+                                <i class="bi bi-play-circle"></i> Run analysis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+<!-- Chart Expand Modal -->
+<div class="modal fade" id="chartExpandModal" tabindex="-1" aria-labelledby="chartExpandModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content chart-expand-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chartExpandModalTitle">Chart visualization</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <figure class="chart-expand-figure">
+                    <img id="chartExpandModalImage" src="" alt="Chart visualization" class="chart-expand-image img-fluid" />
+                    <figcaption id="chartExpandModalDescription" class="chart-expand-description text-muted d-none"></figcaption>
+                </figure>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button type="button" class="floating-clear-results-btn" onclick="clearAllCells()" title="Clear all analysis results">
+    <i class="bi bi-trash"></i>
+    <span class="visually-hidden">Clear analysis results</span>
+</button>
+
+<!-- Domain Recommendations Modal -->
+<div class="modal fade" id="domainRecommendationsModal" tabindex="-1" aria-labelledby="domainRecommendationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-success text-white">
+                <h5 class="modal-title" id="domainRecommendationsModalLabel">
+                    <i class="bi bi-lightbulb"></i> Domain Recommendations
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="domainRecommendationsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading recommendations...</span>
+                        </div>
+                        <p class="mt-2">Generating domain recommendations...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Categorical Analysis Configuration Modal -->
+<div class="modal fade" id="categoricalAnalysisModal" tabindex="-1" aria-labelledby="categoricalAnalysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-info text-white">
+                <h5 class="modal-title" id="categoricalAnalysisModalLabel">
+                    <i class="bi bi-pie-chart"></i> Configure Categorical Analysis
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="categoricalModalSubtitle">
+                    Pick the categorical columns to analyse. Keeping the list small speeds up frequency tables and charts.
+                </p>
+
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                    <div class="input-group input-group-sm w-auto flex-grow-1">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search" class="form-control" id="categoricalColumnSearch" placeholder="Search columns" aria-label="Search categorical columns">
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Categorical selection helpers">
+                        <button type="button" class="btn btn-outline-success" id="categoricalModalSelectAllBtn">
+                            <i class="bi bi-check-all"></i> Select all
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="categoricalModalClearBtn">
+                            <i class="bi bi-x-circle"></i> Clear all
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="categoricalModalRecommendBtn">
+                            <i class="bi bi-magic"></i> Use recommended
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-uppercase small text-muted mb-2">
+                        Recommended categorical columns
+                    </h6>
+                    <div id="categoricalRecommendationChips" class="d-flex flex-wrap gap-2">
+                        <span class="text-muted small">No automatic recommendations yet. Select columns manually below.</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-uppercase small text-muted mb-2">Available columns</h6>
+                    <div class="list-group" id="categoricalColumnList" role="group" aria-label="Available categorical columns">
+                        <div class="text-muted small px-2 py-3">Loading columns…</div>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary" id="categoricalSelectionSummary" role="status">
+                    Select one or more categorical columns to continue.
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="categoricalModalConfirmBtn">
+                    <i class="bi bi-play-circle"></i> Run analysis
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- Numeric Frequency Configuration Modal -->
+        <div class="modal fade" id="numericAnalysisModal" tabindex="-1" aria-labelledby="numericAnalysisModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header bg-gradient-primary text-white">
+                        <h5 class="modal-title" id="numericAnalysisModalLabel">
+                            <i class="bi bi-bar-chart"></i> Configure Numeric Analysis
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3" id="numericModalSubtitle">
+                            Pick the numeric columns to analyse. We adaptively bin large ranges to keep results practical.
+                        </p>
+
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                            <div class="input-group input-group-sm w-auto flex-grow-1">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="search" class="form-control" id="numericColumnSearch" placeholder="Search columns" aria-label="Search numeric columns">
+                            </div>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Numeric selection helpers">
+                                <button type="button" class="btn btn-outline-success" id="numericModalSelectAllBtn">
+                                    <i class="bi bi-check-all"></i> Select all
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="numericModalClearBtn">
+                                    <i class="bi bi-x-circle"></i> Clear all
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" id="numericModalRecommendBtn">
+                                    <i class="bi bi-magic"></i> Use recommended
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6 class="text-uppercase small text-muted mb-2">
+                                Recommended numeric columns
+                            </h6>
+                            <div id="numericRecommendationChips" class="d-flex flex-wrap gap-2">
+                                <span class="text-muted small">No automatic recommendations yet. Select columns manually below.</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6 class="text-uppercase small text-muted mb-2">Available columns</h6>
+                            <div class="list-group" id="numericColumnList" role="group" aria-label="Available numeric columns">
+                                <div class="text-muted small px-2 py-3">Loading columns…</div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-secondary" id="numericSelectionSummary" role="status">
+                            Select one or more numeric columns to continue.
+                        </div>
+                    </div>
+                    <div class="modal-footer d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" id="numericModalConfirmBtn">
+                            <i class="bi bi-play-circle"></i> Run analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+                <!-- Categorical vs Numeric Configuration Modal -->
+                <div class="modal fade" id="categoricalNumericAnalysisModal" tabindex="-1" aria-labelledby="categoricalNumericModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content categorical-numeric-modal">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="categoricalNumericModalLabel">
+                                    <i class="bi bi-bar-chart-steps"></i>
+                                    <span>Configure Categorical vs Numeric Explorer</span>
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted mb-3" id="categoricalNumericModalSubtitle">
+                                    Pick categorical segment columns alongside numeric measures to profile group-level distributions and significance.
+                                </p>
+
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-3 categorical-numeric-toolbar">
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Categorical vs numeric helpers">
+                                        <button type="button" class="btn btn-outline-primary" id="categoricalNumericModalRecommendBtn">
+                                            <i class="bi bi-stars"></i>
+                                            <span>Apply smart pairs</span>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="categoricalNumericModalClearAllBtn">
+                                            <i class="bi bi-eraser"></i>
+                                            <span>Clear all</span>
+                                        </button>
+                                    </div>
+                                    <div class="ms-auto text-muted small">
+                                        Combine at least one categorical and one numeric column to enable the explorer.
+                                    </div>
+                                </div>
+
+                                <div class="card mb-3 categorical-numeric-recommendations">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                            <h6 class="text-uppercase small text-muted mb-0">Suggested pairings</h6>
+                                            <span class="badge rounded-pill bg-light-subtle text-muted">Powered by column quality signals</span>
+                                        </div>
+                                        <div id="categoricalNumericRecommendationChips" class="d-flex flex-wrap gap-2">
+                                            <span class="text-muted small">Gathering column insights&hellip;</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-lg-6">
+                                        <div class="card h-100 categorical-numeric-card">
+                                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="bi bi-diagram-3"></i>
+                                                    <strong>Categorical columns</strong>
+                                                </div>
+                                                <div class="btn-group btn-group-sm" role="group" aria-label="Categorical column helpers">
+                                                    <button type="button" class="btn btn-outline-success" id="categoricalNumericCategoricalSelectAllBtn">
+                                                        <i class="bi bi-check-all"></i>
+                                                        <span>Select all</span>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary" id="categoricalNumericCategoricalClearBtn">
+                                                        <i class="bi bi-x-circle"></i>
+                                                        <span>Clear</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="input-group input-group-sm mb-3">
+                                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                                    <input type="search" class="form-control" id="categoricalNumericCategoricalSearch" placeholder="Search categorical columns" aria-label="Search categorical columns">
+                                                </div>
+                                                <div id="categoricalNumericCategoricalList" class="list-group categorical-numeric-list" role="group" aria-label="Available categorical columns">
+                                                    <div class="text-muted small px-2 py-3">Loading categorical columns&hellip;</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="card h-100 categorical-numeric-card">
+                                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="bi bi-graph-up"></i>
+                                                    <strong>Numeric columns</strong>
+                                                </div>
+                                                <div class="btn-group btn-group-sm" role="group" aria-label="Numeric column helpers">
+                                                    <button type="button" class="btn btn-outline-success" id="categoricalNumericNumericSelectAllBtn">
+                                                        <i class="bi bi-check-all"></i>
+                                                        <span>Select all</span>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary" id="categoricalNumericNumericClearBtn">
+                                                        <i class="bi bi-x-circle"></i>
+                                                        <span>Clear</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="input-group input-group-sm mb-3">
+                                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                                    <input type="search" class="form-control" id="categoricalNumericNumericSearch" placeholder="Search numeric columns" aria-label="Search numeric columns">
+                                                </div>
+                                                <div id="categoricalNumericNumericList" class="list-group categorical-numeric-list" role="group" aria-label="Available numeric columns">
+                                                    <div class="text-muted small px-2 py-3">Loading numeric columns&hellip;</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-secondary" id="categoricalNumericSelectionSummary" role="status">
+                                    Select at least one categorical column and one numeric column to continue.
+                                </div>
+                            </div>
+                            <div class="modal-footer d-flex justify-content-between align-items-center">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                                <button type="button" class="btn btn-primary" id="categoricalNumericModalConfirmBtn">
+                                    <i class="bi bi-play-circle"></i> Run analysis
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+        <!-- Time Series Configuration Modal -->
+        <div class="modal fade" id="timeSeriesAnalysisModal" tabindex="-1" aria-labelledby="timeSeriesAnalysisModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="timeSeriesAnalysisModalLabel">
+                            <i class="bi bi-clock-history"></i>
+                            <span>Configure Time Series Analysis</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3" id="timeSeriesModalSubtitle">
+                            Choose the datetime column and numeric measures you'd like to analyse across time.
+                        </p>
+
+                        <div class="card mb-3">
+                            <div class="modal-header card-header bg-gradient-info text-white">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-calendar-week me-2 text-warning"></i>
+                                    <strong>Datetime columns</strong>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                                        <div class="input-group input-group-sm w-auto flex-grow-1">
+                                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                            <input type="search" class="form-control" id="timeSeriesDatetimeSearch" placeholder="Search datetime columns" aria-label="Search datetime columns">
+                                        </div>
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Time series datetime helpers">
+                                            <button type="button" class="btn btn-outline-primary" id="timeSeriesDatetimeAutoBtn">
+                                                <i class="bi bi-magic"></i> Auto select
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" id="timeSeriesDatetimeClearBtn">
+                                                <i class="bi bi-x-circle"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                <div class="list-group" id="timeSeriesDatetimeList" role="group" aria-label="Available datetime columns">
+                                    <div class="text-muted small px-2 py-3">Loading columns…</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3" id="timeSeriesNumericSection">
+                            <div class="modal-header card-header bg-gradient-info text-white">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-speedometer2 me-2 text-primary"></i>
+                                        <strong>Numeric columns</strong>
+                                    </div>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Time series numeric helpers">
+                                        <button type="button" class="btn btn-outline-success" id="timeSeriesNumericSelectAllBtn">
+                                            <i class="bi bi-check-all"></i> Select all
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="timeSeriesNumericClearBtn">
+                                            <i class="bi bi-x-circle"></i> Clear
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" id="timeSeriesNumericRecommendBtn">
+                                            <i class="bi bi-magic"></i> Use recommended
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="search" class="form-control" id="timeSeriesNumericSearch" placeholder="Search numeric columns" aria-label="Search numeric columns">
+                                </div>
+                                <div class="list-group" id="timeSeriesNumericList" role="group" aria-label="Available numeric columns">
+                                    <div class="text-muted small px-2 py-3">Loading columns…</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-secondary" id="timeSeriesSelectionSummary" role="status">
+                            Select a datetime column to continue.
+                        </div>
+                    </div>
+                    <div class="modal-footer d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" id="timeSeriesModalConfirmBtn">
+                            <i class="bi bi-play-circle"></i> Run analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Geospatial Configuration Modal -->
+        <div class="modal fade" id="geospatialAnalysisModal" tabindex="-1" aria-labelledby="geospatialAnalysisModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content geospatial-analysis-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="geospatialAnalysisModalLabel">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>Configure Geospatial Analysis</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3" id="geospatialModalSubtitle">
+                            Choose latitude and longitude columns so maps and proximity metrics can run accurately.
+                        </p>
+
+                        <div class="row g-3">
+                            <div class="col-lg-6">
+                                <label for="geospatialLatitudeSelect" class="form-label fw-semibold">Latitude column</label>
+                                <select class="form-select" id="geospatialLatitudeSelect" aria-label="Latitude column">
+                                    <option value="">Select latitude column</option>
+                                </select>
+                                <div class="form-text" id="geospatialLatitudeHint">Columns containing 'lat' are suggested automatically.</div>
+                            </div>
+                            <div class="col-lg-6">
+                                <label for="geospatialLongitudeSelect" class="form-label fw-semibold">Longitude column</label>
+                                <select class="form-select" id="geospatialLongitudeSelect" aria-label="Longitude column">
+                                    <option value="">Select longitude column</option>
+                                </select>
+                                <div class="form-text" id="geospatialLongitudeHint">Columns containing 'lon' or 'long' are suggested automatically.</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3" id="geospatialLabelGroup">
+                            <label for="geospatialLabelSelect" class="form-label fw-semibold">Optional location label</label>
+                            <select class="form-select" id="geospatialLabelSelect" aria-label="Location label column">
+                                <option value="">None (skip label)</option>
+                            </select>
+                            <div class="form-text">Add a descriptive column (e.g. city or site) to annotate nearest-neighbour summaries.</div>
+                        </div>
+
+                        <div class="mt-4 d-none" id="geospatialOptionalModeGroup">
+                            <label class="form-label fw-semibold d-block mb-2" for="geospatialOptionalModeNone">Optional enhancements</label>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Optional geospatial enhancements">
+                                <input type="radio" class="btn-check" name="geospatialOptionalMode" id="geospatialOptionalModeNone" value="none" autocomplete="off" checked>
+                                <label class="btn btn-outline-secondary" for="geospatialOptionalModeNone">None</label>
+                                <input type="radio" class="btn-check" name="geospatialOptionalMode" id="geospatialOptionalModeRadius" value="radius" autocomplete="off">
+                                <label class="btn btn-outline-secondary" for="geospatialOptionalModeRadius">Radius &amp; reference</label>
+                                <input type="radio" class="btn-check" name="geospatialOptionalMode" id="geospatialOptionalModeComparison" value="comparison" autocomplete="off">
+                                <label class="btn btn-outline-secondary" for="geospatialOptionalModeComparison">Coordinate comparison</label>
+                            </div>
+                            <div class="form-text">Choose the enhancement to focus on. Only the selected option will appear below and in the analysis results.</div>
+                            <p class="small text-muted mb-0">
+                                <strong>Mode details:</strong>
+                                <span class="d-block">None &mdash; measures distances using the dataset centroid as the reference point.</span>
+                                <span class="d-block">Radius &amp; reference &mdash; lets you specify a fixed radius and/or manual reference coordinates to anchor proximity metrics.</span>
+                                <span class="d-block">Coordinate comparison &mdash; calculates haversine deltas between your primary coordinates and an alternate pair.</span>
+                            </p>
+                        </div>
+
+                        <div class="card mt-4 d-none" id="geospatialProximityConfig">
+                            <div class="card-header bg-light fw-semibold">
+                                <i class="bi bi-bullseye"></i> Proximity configuration
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3 align-items-start">
+                                    <div class="col-lg-4">
+                                        <label for="geospatialProximityRadiusInput" class="form-label fw-semibold">Proximity radius (km)</label>
+                                        <input type="number" min="0" step="0.1" class="form-control" id="geospatialProximityRadiusInput" placeholder="e.g. 5">
+                                        <div class="form-text">Optional radius to measure how many observations fall within this distance of the reference point.</div>
+                                    </div>
+                                    <div class="col-lg-8">
+                                        <label class="form-label fw-semibold">Reference point (optional)</label>
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control" id="geospatialReferenceLatitudeInput" placeholder="Latitude e.g. 40.7128">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control" id="geospatialReferenceLongitudeInput" placeholder="Longitude e.g. -74.0060">
+                                            </div>
+                                        </div>
+                                        <div class="form-text">Leave blank to use the dataset centroid automatically, or supply decimal-degree coordinates to anchor the analysis.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-3 d-none" id="geospatialComparisonConfig">
+                            <div class="card-header bg-light fw-semibold">
+                                <i class="bi bi-arrows-move"></i> Coordinate comparison (optional)
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-3">Select alternate latitude and longitude columns to measure the row-level distance difference (haversine) against the primary coordinates.</p>
+                                <div class="row g-3">
+                                    <div class="col-lg-6">
+                                        <label for="geospatialComparisonLatitudeSelect" class="form-label fw-semibold">Comparison latitude column</label>
+                                        <select class="form-select" id="geospatialComparisonLatitudeSelect" aria-label="Comparison latitude column">
+                                            <option value="">None (skip comparison latitude)</option>
+                                        </select>
+                                        <div class="form-text">Pick another latitude column (e.g. predicted or reference) to compare against the primary selection.</div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <label for="geospatialComparisonLongitudeSelect" class="form-label fw-semibold">Comparison longitude column</label>
+                                        <select class="form-select" id="geospatialComparisonLongitudeSelect" aria-label="Comparison longitude column">
+                                            <option value="">None (skip comparison longitude)</option>
+                                        </select>
+                                        <div class="form-text">Haversine distances are computed using this column together with the comparison latitude.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center flex-wrap gap-2 mt-4">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="geospatialModalAutoBtn">
+                                <i class="bi bi-magic"></i> Auto-detect coordinates
+                            </button>
+                            <span class="text-muted small" id="geospatialModalAutoStatus"></span>
+                        </div>
+
+                        <div class="alert alert-secondary mt-3" id="geospatialSelectionSummary" role="status">
+                            Select latitude and longitude columns to continue.
+                        </div>
+                    </div>
+                    <div class="modal-footer d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" id="geospatialModalConfirmBtn">
+                            <i class="bi bi-play-circle"></i> Run analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Analysis Configuration Modal -->
+        <div class="modal fade" id="textAnalysisModal" tabindex="-1" aria-labelledby="textAnalysisModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content text-analysis-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="textAnalysisModalLabel">
+                            <i class="bi bi-fonts"></i>
+                            <span>Configure Text Analysis</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3" id="textModalSubtitle">
+                            Choose text-heavy columns to analyse their length distribution, vocabulary diversity, and dominant tokens.
+                        </p>
+
+                        <div class="card mb-3 text-modal-card">
+                            <div class="modal-header card-header bg-gradient-text text-white">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 w-100">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-chat-text me-2 text-warning"></i>
+                                        <strong>Text columns</strong>
+                                    </div>
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Text modal helpers">
+                                        <button type="button" class="btn btn-outline-success" id="textModalSelectAllBtn">
+                                            <i class="bi bi-check-all"></i> Select all
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="textModalClearBtn">
+                                            <i class="bi bi-x-circle"></i> Clear
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" id="textModalRecommendBtn">
+                                            <i class="bi bi-magic"></i> Use recommended
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group input-group-sm mb-3">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="search" class="form-control" id="textColumnSearch" placeholder="Search text columns" aria-label="Search text columns">
+                                </div>
+
+                                <div class="mb-3">
+                                    <h6 class="text-uppercase small text-muted mb-2">Recommended text columns</h6>
+                                    <div id="textRecommendationChips" class="d-flex flex-wrap gap-2">
+                                        <span class="text-muted small">No automatic recommendations yet. Select columns manually below.</span>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <h6 class="text-uppercase small text-muted mb-2">Available columns</h6>
+                                    <div class="list-group" id="textColumnList" role="group" aria-label="Available text columns">
+                                        <div class="text-muted small px-2 py-3">Loading columns…</div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-secondary" id="textSelectionSummary" role="status">
+                                    Select one or more text columns to continue.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" id="textModalConfirmBtn">
+                            <i class="bi bi-play-circle"></i> Run analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+                <!-- Network Analysis Configuration Modal -->
+                <div class="modal fade" id="networkAnalysisModal" tabindex="-1" aria-labelledby="networkAnalysisModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content network-analysis-modal">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="networkAnalysisModalLabel">
+                                    <i class="bi bi-share"></i>
+                                    <span>Configure Variable Network</span>
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted mb-3" id="networkModalSubtitle">
+                                    Pick at least two numeric columns to explore their correlations and connection strength in a network graph.
+                                </p>
+
+                                <div class="card mb-3">
+                                    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-diagram-3 text-primary"></i>
+                                            <strong>Numeric measures</strong>
+                                        </div>
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Network column helpers">
+                                            <button type="button" class="btn btn-outline-success" id="networkModalSelectAllBtn">
+                                                <i class="bi bi-check-all"></i> Select all
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" id="networkModalClearBtn">
+                                                <i class="bi bi-x-circle"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="input-group input-group-sm mb-3">
+                                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                            <input type="search" class="form-control" id="networkColumnSearch" placeholder="Search numeric columns" aria-label="Search numeric columns">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <h6 class="text-uppercase small text-muted mb-2">Available numeric columns</h6>
+                                            <div class="list-group" id="networkColumnList" role="group" aria-label="Available numeric columns">
+                                                <div class="text-muted small px-2 py-3">Loading columns…</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="alert alert-secondary" id="networkSelectionSummary" role="status">
+                                            Select at least two numeric columns to continue.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                                <button type="button" class="btn btn-primary" id="networkModalConfirmBtn">
+                                    <i class="bi bi-play-circle"></i> Run analysis
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Entity Network Configuration Modal -->
+                <div class="modal fade" id="entityNetworkAnalysisModal" tabindex="-1" aria-labelledby="entityNetworkAnalysisModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content entity-network-modal">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="entityNetworkAnalysisModalLabel">
+                                    <i class="bi bi-globe2"></i>
+                                    <span>Configure Entity Network</span>
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted mb-3" id="entityNetworkModalSubtitle">
+                                    Select categorical columns that co-occur to map their relationships as a network. Choosing two columns helps spotlight the strongest links.
+                                </p>
+
+                                <div class="card mb-3">
+                                    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-people text-success"></i>
+                                            <strong>Categorical attributes</strong>
+                                        </div>
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Entity network helpers">
+                                            <button type="button" class="btn btn-outline-success" id="entityNetworkModalSelectAllBtn">
+                                                <i class="bi bi-check-all"></i> Select all
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" id="entityNetworkModalClearBtn">
+                                                <i class="bi bi-x-circle"></i> Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="input-group input-group-sm mb-3">
+                                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                            <input type="search" class="form-control" id="entityNetworkColumnSearch" placeholder="Search categorical columns" aria-label="Search categorical columns">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <h6 class="text-uppercase small text-muted mb-2">Available categorical columns</h6>
+                                            <div class="list-group" id="entityNetworkColumnList" role="group" aria-label="Available categorical columns">
+                                                <div class="text-muted small px-2 py-3">Loading columns…</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="alert alert-secondary" id="entityNetworkSelectionSummary" role="status">
+                                            Select at least two categorical columns to continue.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                                <button type="button" class="btn btn-primary" id="entityNetworkModalConfirmBtn">
+                                    <i class="bi bi-play-circle"></i> Run analysis
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+<!-- Cross Tabulation Configuration Modal -->
+<div class="modal fade" id="crossTabAnalysisModal" tabindex="-1" aria-labelledby="crossTabAnalysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-secondary text-white">
+                <h5 class="modal-title" id="crossTabAnalysisModalLabel">
+                    <i class="bi bi-table"></i> Configure Cross Tabulation
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="crossTabModalSubtitle">
+                    Choose two categorical columns. We'll build the cross tab with the first column on rows and the second on columns.
+                </p>
+
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                    <div class="input-group input-group-sm w-auto flex-grow-1">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search" class="form-control" id="crossTabColumnSearch" placeholder="Search columns" aria-label="Search categorical columns for cross tabulation">
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Cross tab selection helpers">
+                        <button type="button" class="btn btn-outline-secondary" id="crossTabModalClearBtn">
+                            <i class="bi bi-x-circle"></i> Clear
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="crossTabModalRecommendBtn">
+                            <i class="bi bi-magic"></i> Recommended pair
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" id="crossTabModalSwapBtn" disabled>
+                            <i class="bi bi-arrow-left-right"></i> Swap axes
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-uppercase small text-muted mb-2">Recommended categorical columns</h6>
+                    <div id="crossTabRecommendationChips" class="d-flex flex-wrap gap-2">
+                        <span class="text-muted small">No automatic recommendations yet. Select columns manually below.</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-uppercase small text-muted mb-2">Available columns</h6>
+                    <div class="list-group" id="crossTabColumnList" role="group" aria-label="Available categorical columns for cross tabulation">
+                        <div class="text-muted small px-2 py-3">Loading columns…</div>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary" id="crossTabSelectionSummary" role="status">
+                    Select two categorical columns to generate a cross tabulation.
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="crossTabModalConfirmBtn" disabled>
+                    <i class="bi bi-play-circle"></i> Run analysis
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Code Modal -->
+                <div class="modal fade" id="analysisCodeModal" tabindex="-1" aria-labelledby="analysisCodeModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="analysisCodeModalLabel">
+                                    <i class="bi bi-code-square me-2"></i>Code snippet
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="analysisCodeStatus" class="alert alert-info d-none" role="status">
+                                    Generating notebook-ready code...
+                                </div>
+                                <div id="analysisCodeBlock" class="analysis-code-block d-none">
+                                    <pre class="code-block"><code id="analysisCodeContent" class="language-python"></code></pre>
+                                </div>
+                            </div>
+                            <div class="modal-footer d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle"></i> Close
+                                </button>
+                                <button type="button" class="btn btn-primary" id="analysisCodeCopyBtn" onclick="copyAnalysisCodeToClipboard()" disabled>
+                                    <i class="bi bi-clipboard"></i> Copy code
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Marketing Analysis Configuration Modal -->
+<div class="modal fade" id="marketingAnalysisModal" tabindex="-1" aria-labelledby="marketingAnalysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h5 class="modal-title" id="marketingAnalysisModalLabel">
+                    <i class="bi bi-graph-up-arrow"></i> Configure Marketing Analysis
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Analysis Type Selection -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-info text-white">
+                                <i class="bi bi-info-circle"></i> Analysis Details
+                            </div>
+                            <div class="card-body">
+                                <h6 id="analysisTitle" class="text-primary">Campaign Metrics Analysis</h6>
+                                <p id="analysisDescription" class="text-muted">
+                                    Analyze marketing campaign performance metrics including impressions, clicks, conversions, CTR, CPC, and ROAS.
+                                </p>
+                                <div id="analysisFeatures">
+                                    <small class="text-success"><strong>What you'll get:</strong></small>
+                                    <ul class="list-unstyled small text-muted" id="featuresList">
+                                        <li>✓ Core KPI calculations (CTR, CPC, ROAS)</li>
+                                        <li>✓ Performance distribution analysis</li>
+                                        <li>✓ Data quality assessment</li>
+                                        <li>✓ Actionable recommendations</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card h-100">
+                            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-sliders"></i> Column Mapping</span>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-dark me-1" onclick="debugColumnMapping()" title="Debug column mapping">
+                                        <i class="bi bi-bug"></i>
+                                    </button>
+                                    <small>Map your data columns to analysis metrics</small>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row" id="columnMappingContainer">
+                                    <!-- Dynamic column mapping options will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Example Data Preview -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-secondary text-white">
+                                <span><i class="bi bi-table"></i> Example Data Format</span>
+                            </div>
+                            <div class="card-body" id="exampleDataCard">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="text-primary">Sample Campaign Data:</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped">
+                                                <thead class="table-primary">
+                                                    <tr>
+                                                        <th>campaign_name</th>
+                                                        <th>impressions</th>
+                                                        <th>clicks</th>
+                                                        <th>conversions</th>
+                                                        <th>spend</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>Summer_Sale_2024</td>
+                                                        <td>25,000</td>
+                                                        <td>1,200</td>
+                                                        <td>45</td>
+                                                        <td>$500</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Holiday_Promo</td>
+                                                        <td>18,500</td>
+                                                        <td>890</td>
+                                                        <td>32</td>
+                                                        <td>$380</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="text-success">Generated Insights:</h6>
+                                        <ul class="list-unstyled">
+                                            <li><span class="badge bg-primary">CTR</span> Summer Sale: 4.8%, Holiday: 4.8%</li>
+                                            <li><span class="badge bg-success">Conversion Rate</span> Summer: 3.75%, Holiday: 3.6%</li>
+                                            <li><span class="badge bg-warning">CPC</span> Summer: $0.42, Holiday: $0.43</li>
+                                            <li><span class="badge bg-info">Recommendations</span> Scale Summer Sale campaign</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Configuration Summary -->
+                <div class="alert alert-info hidden-section" id="configurationSummary">
+                    <h6><i class="bi bi-check-circle"></i> Configuration Summary</h6>
+                    <div id="mappingSummaryList"></div>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </button>
+                <div>
+                    <button type="button" class="btn btn-outline-primary me-2" onclick="autoDetectColumns()">
+                        <i class="bi bi-magic"></i> Auto-Detect Columns
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="generateMarketingAnalysis()" id="generateAnalysisBtn">
+                        <i class="bi bi-play-circle"></i> Generate Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notebook Styles moved to eda.css for better maintainability -->
+
+<!-- Notebook JavaScript -->
+<script src="/static/js/eda/notebook.js"></script>
