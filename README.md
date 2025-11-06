@@ -73,13 +73,6 @@ MLOps Platform
 - **Exceptions & Middleware**: `core.exceptions.handlers` plus `middleware/` for structured logging and global error handling
 - **Utilities (`core/utils`)**: File helpers, logging adapters, maintenance routines, and audit logging
 
-## �📋 Prerequisites
-
-- **Python 3.10+** (Required for geospatial dependencies)
-- **Node.js 16+** (For frontend build tools)
-- **PostgreSQL 12+** (Optional, SQLite included)
-- **Docker** (Optional, for containerized deployment)
-
 ## ⚡ Quick Start
 
 ### 1. Clone Repository
@@ -346,26 +339,6 @@ mypy core/
 ├── docs/                  # Documentation
 └── config.py              # Application configuration
 ```
-
-## 🧰 Tooling & Automation
-
-- **Notebook Bundling**: `tools/build_notebook_bundle.py` compiles advanced EDA notebooks for deployment
-- **Alembic**: `alembic.ini` preconfigures migration settings for managing schema upgrades
-- **Middleware Stack**: `middleware/logging.py` and `middleware/error_handler.py` provide structured logging and global error capture
-- **Background Tasks**: Lifespan hooks in `main.py` initialize connections, warm caches, and gracefully shut down resources
-
-## 📈 Performance Optimization
-
-### Database Optimization
-- **Connection Pooling**: Async SQLAlchemy with connection pooling
-- **Query Optimization**: Efficient queries with proper indexing
-- **Caching Layer**: Redis for session and analysis caching
-
-### Analysis Performance
-- **Lazy Loading**: On-demand data loading for large datasets
-- **Chunked Processing**: Memory-efficient processing for large files
-- **Parallel Processing**: Multi-process analysis for heavy computations
-
 ## 🤝 Contributing
 
 ### Contribution Guidelines
@@ -397,14 +370,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues**: GitHub Issues for bug reports and feature requests
 - **Discussions**: GitHub Discussions for questions and community
 - **Wiki**: Comprehensive documentation and examples
-
-## 📘 Documentation Index
-
-- `LLM_MODEL_SWITCHING_GUIDE.md`: Provider configuration and client-side switching helpers
-- `docs/EDA_SECURITY_GUIDE.md`: In-depth look at sandbox enforcement and code validation
-- `docs/MULTI_USER_ENHANCEMENTS.md`: Role-based access control and admin UX improvements
-- `docs/REAL_TIME_MONITORING_GUIDE.md`: Monitoring architecture and observability patterns
-- `core/eda/advanced_eda/README.md`: Advanced analysis runtime, generators, and component catalog
 
 ## 🙏 Acknowledgments
 
